@@ -36,13 +36,10 @@
 using namespace TMath;
 using namespace std;
 
-extern Configurator* sMainConfig;
 extern TString	sModelINI;
 extern TString	sEventDIR;
 extern TString	sTimeStamp;
 extern int	sModel;
-extern int	sRandomize;
-extern int	sIntegrateSample;
 
 Model_Example::Model_Example()
 : Model(),
@@ -51,8 +48,8 @@ Model_Example::Model_Example()
 {
 }
 
-Model_Example::Model_Example(TRandom2* aRandom)
-: Model(aRandom)
+Model_Example::Model_Example(TRandom2* aRandom, Configurator *aMainConfig)
+: Model(aRandom, aMainConfig)
 {
   mName = "Example";
   mThermo = new Thermodynamics();
@@ -124,8 +121,7 @@ void Model_Example::Description()
   oss << "# - parameter #2           : " <<MODEL_PAR_DESC(mParameter2,"[unit]");
   oss << "# - parameter #3           : " <<MODEL_PAR_DESC(mParameter3,"[unit]");
   oss << "# Parameters hash (CRC32)  : " <<MODEL_PAR_DESC(mHash,	"");
-  oss << "# Integration samples      : " <<MODEL_PAR_DESC(sIntegrateSample,"");
-  oss << "# Random seed              : " <<MODEL_PAR_DESC((sRandomize ? "yes" : "no"),"");
+  Describe(oss);
   oss << "# Generation date          : " <<sTimeStamp<<" #"<<endl;
   oss << "##################################################"<< endl;
   mDescription = oss.str();

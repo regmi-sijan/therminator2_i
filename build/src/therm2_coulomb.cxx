@@ -154,7 +154,7 @@ That information can be passed to other programs i.e. ROOT figures or HBT in one
   double tCoulombStepSize = sMainConfig->GetParameter("CoulombStepSize").Atof();
   // TODO: Repalce 0.0 with actual value
  // tAfterburners->Add(new CoulombAfterburner(tCoulombSteps, tCoulombStepSize, 0.0, tEventSaver));
-  tAfterburners->Add(new CoulombAfterburner(tCoulombSteps, tCoulombStepSize, 0.0, nullptr));
+  tAfterburners->Add(new CoulombAfterburner(tCoulombSteps, tCoulombStepSize, 0.0, nullptr, tPartDB));
   } catch (TString &str) {
     cout << "Parameter " << str.Data() << " is not known" << endl;
   }

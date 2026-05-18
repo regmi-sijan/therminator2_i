@@ -38,13 +38,11 @@
 using namespace TMath;
 using namespace std;
 
-extern Configurator* sMainConfig;
 extern TString	sModelINI;
 extern TString	sEventDIR;
 extern TString	sTimeStamp;
 extern int	sModel;
-extern int	sRandomize;
-extern int	sIntegrateSample;
+
 
 Model_SR::Model_SR()
 : Model(),
@@ -53,8 +51,8 @@ Model_SR::Model_SR()
 {
 }
 
-Model_SR::Model_SR(TRandom2* aRandom)
-: Model(aRandom) 
+Model_SR::Model_SR(TRandom2* aRandom, Configurator* aMainConfig)
+: Model(aRandom, aMainConfig) 
 {
   mName = "SR";
   mThermo = new Thermodynamics();
@@ -67,6 +65,11 @@ Model_SR::~Model_SR()
 {
   delete mThermo;
 }
+/*
+void Model_SR::GenerateValuesIndependent() {
+
+}
+*/
 
 std::pair<double, double> Model_SR::GetIntegrand(ParticleType* aPartType, bool finiteWidth, bool)
 {
@@ -76,8 +79,7 @@ std::pair<double, double> Model_SR::GetIntegrand(ParticleType* aPartType, bool f
   double R, Phi, Theta;
   double P, PhiP, ThetaP;
   double dPdZet, Ep, kappa;
-    double kappau, kappax;
-  double Mt, Pt, RapP;
+  double kappau, kappax;
 
 // type of statistics: Bose-Einstein or Fermi-Dirac
   Spin = aPartType->GetSpin();
@@ -86,82 +88,67 @@ std::pair<double, double> Model_SR::GetIntegrand(ParticleType* aPartType, bool f
   Temp	= mThermo->GetTemperature();
   Mu = mThermo->GetChemicalPotential(aPartType);
 //    mRandom->SetSeed(41321);
-  
-// generate random spatial position 
-  R	    = mR * mRandom->Rndm();
-  Phi	= 2.0 * Pi() * mRandom->Rndm();  
-  Theta	= Pi() * mRandom->Rndm();  
-    
-// generate random momentum position 
-  {
+//  GenerateValuesIndependent(); 
+// !!!
+
+    // generate random spatial position 
+    R	    = mR * mRandom->Rndm();
+    Phi	= 2.0 * Pi() * mRandom->Rndm();  
+    Theta	= Pi() * mRandom->Rndm();  
+
+    // generate random momentum position 
     double Zet = mRandom->Rndm();
     P	= Zet / (1.0 - Zet);	// 0 <= p <= Infinity
     dPdZet	= 1.0 / ( (1.0 - Zet) * (1.0 - Zet) );
-  }
-  PhiP	= 2.0 * Pi() * mRandom->Rndm(); 
-  ThetaP	= Pi() * mRandom->Rndm();  
-  
-// other variables
+    PhiP	= 2.0 * Pi() * mRandom->Rndm(); 
+    ThetaP	= Pi() * mRandom->Rndm();  
 
-  double spectralFunctionWeight;
-  double M;
-//  finiteWidth = false;
-  GetParticleMass(aPartType, finiteWidth,M,spectralFunctionWeight);
+    // other variables
 
-  Ep	= Hypot(M,P);
+    double spectralFunctionWeight;
+    double M;
+    //  finiteWidth = false;
+    GetParticleMass(aPartType, finiteWidth,M,spectralFunctionWeight);
+
+    Ep	= Hypot(M,P);
     // for spherical
-//   kappa = Cos(Theta) * Cos(ThetaP) + Sin(Theta) * Sin(ThetaP) * Cos(Phi - PhiP);
+    //   kappa = Cos(Theta) * Cos(ThetaP) + Sin(Theta) * Sin(ThetaP) * Cos(Phi - PhiP);
     // for spheroidal
-     kappau = Cos(Theta) * Cos(ThetaP) * sqrt(1+mDel) + Sin(Theta) * Sin(ThetaP) * Cos(Phi - PhiP)* sqrt(1-mDel);
-     kappax = Cos(Theta) * Cos(ThetaP) + Sin(Theta) * Sin(ThetaP) * Cos(Phi - PhiP) * (sqrt(1+mEps) / sqrt(1-mEps));
-    
+    kappau = Cos(Theta) * Cos(ThetaP) * sqrt(1+mDel) + Sin(Theta) * Sin(ThetaP) * Cos(Phi - PhiP)* sqrt(1-mDel);
+    kappax = Cos(Theta) * Cos(ThetaP) + Sin(Theta) * Sin(ThetaP) * Cos(Phi - PhiP) * (sqrt(1+mEps) / sqrt(1-mEps));
 
 
-//   Float_t tVR = 0.5;  // TO JEST TYLKO TO TESTU NA STALY PRZYEPLYW !!!!
-  Float_t tVR = TanH(mH * R);
 
-  // invariants
-  double Lgamma     =  1.0/sqrt(1-(1+mDel*Cos(2*Theta))*tVR*tVR);
-  double UdotP      = (Ep - P * tVR * kappau) * Lgamma;
-  dSIGMAdotP = (1-mEps) * R*R * Sin(Theta) * (Ep * sqrt(1+mEps) - P * mA * kappax);
-  
-// disable particle emission back to the hydro region
-  if(dSIGMAdotP < 0.0) 
-    dSIGMAdotP = 0.0;
-// particle X and P coordinates - required to be initiated
-  Xt = mT0 + mA * R;
-//  Xt = mT0 + tVR * R; /// ta linijka byla chyba zanim dodalismy Hubbla
-  Xx = Sqrt(1-mEps) * R * Cos(Phi) * Sin(Theta);
-  Xy = Sqrt(1-mEps) * R * Sin(Phi) * Sin(Theta);
-  Xz = Sqrt(1+mEps) * R * Cos(Theta);
-  
-  Pe = Ep;
-  Px = P * Cos(PhiP) * Sin(ThetaP);
-  Py = P * Sin(PhiP) * Sin(ThetaP);
-  Pz = P * Cos(ThetaP);
+    //   Float_t tVR = 0.5;  // TO JEST TYLKO TO TESTU NA STALY PRZYEPLYW !!!!
+    Float_t tVR = TanH(mH * R);
 
-  Pt  = Hypot(Px,Py);
-  Mt  = Hypot(M,Pt);
-  RapP = 1./2*TMath::Log((Pe+Pz)/(Pe-Pz));
+    // invariants
+    double Lgamma     =  1.0/sqrt(1-(1+mDel*Cos(2*Theta))*tVR*tVR);
+    double UdotP      = (Ep - P * tVR * kappau) * Lgamma;
+    dSIGMAdotP = (1-mEps) * R*R * Sin(Theta) * (Ep * sqrt(1+mEps) - P * mA * kappax);
 
-  Float_t Ekin  = Mt * CosH(RapP);
-  Float_t Px0   = Pt * Cos(PhiP);
-  Float_t Py0   = Pt * Sin(PhiP);
-  Float_t Pz0   = Mt * SinH(RapP);
+    // disable particle emission back to the hydro region
+    if(dSIGMAdotP < 0.0) 
+        dSIGMAdotP = 0.0;
+    // particle X and P coordinates - required to be initiated
+    Xt = mT0 + mA * R;
+    //  Xt = mT0 + tVR * R; /// ta linijka byla chyba zanim dodalismy Hubbla
+    Xx = Sqrt(1-mEps) * R * Cos(Phi) * Sin(Theta);
+    Xy = Sqrt(1-mEps) * R * Sin(Phi) * Sin(Theta);
+    Xz = Sqrt(1+mEps) * R * Cos(Theta);
 
-  Px = Px0;
-  Py = Py0;
-  Pz = Pz0;
-  Pe = Ekin;
+    Pe = Ep;
+    Px = P * Cos(PhiP) * Sin(ThetaP);
+    Py = P * Sin(PhiP) * Sin(ThetaP);
+    Pz = P * Cos(ThetaP);
 
+// !!!
 
   double fugacity 
       = Power(mThermo->GetGammaQ(),  aPartType->GetNumberQ() + aPartType->GetNumberAQ())
       * Power(mThermo->GetGammaS(),  aPartType->GetNumberS() + aPartType->GetNumberAS())
       * Exp(mThermo->GetChemicalPotential(aPartType) / Temp);
   double invFugacity = 1. / fugacity;
-
-  int pdg = aPartType->GetPDGCode();
 
   double T          = mThermo->GetTemperature();
 //  double Mu         = mThermo->GetChemicalPotential(aPartType);
@@ -223,8 +210,7 @@ void Model_SR::Description()
     oss << "# - fugacity Gamma_C       : " <<MODEL_PAR_DESC(mThermo->GetGammaC(),  "[1]");   
   }
   oss << "# Parameters hash (CRC32)  : " <<MODEL_PAR_DESC(mHash,		"");
-  oss << "# Integration samples      : " <<MODEL_PAR_DESC(sIntegrateSample,	"");
-  oss << "# Random seed              : " <<MODEL_PAR_DESC((sRandomize ? "yes" : "no"),"");
+  Describe(oss);
   oss << "# Generation date          : " <<sTimeStamp<<" #"<<endl;
   oss << "##################################################"<< endl;
   mDescription = oss.str();

@@ -37,7 +37,7 @@ class Model_KrakowSFO
 {
   public:
     Model_KrakowSFO();
-    Model_KrakowSFO(TRandom2* aRandom);
+    Model_KrakowSFO(TRandom2* aRandom, Configurator *aMainConfig);
     ~Model_KrakowSFO();
     
     std::pair<double, double> GetIntegrand(ParticleType* aPartType, bool finiteWidth, bool positionDistribution = false);
@@ -80,7 +80,7 @@ class Model_KrakowSFO
  * @fn Model_KrakowSFO::Model_KrakowSFO()
  * @brief Default constructor.
  *
- * @fn Model_KrakowSFO::Model_KrakowSFO(TRandom2* aRandom)
+ * @fn Model_KrakowSFO::Model_KrakowSFO(TRandom2* aRandom, Configurator *aMainConfig)
  * @brief Constructor that links a random number generator form Integrator.
  * @param [in] aRandom pointer to <a href="http://root.cern.ch/root/html/TRandom2.html">TRandom2</a> random number generator
  *

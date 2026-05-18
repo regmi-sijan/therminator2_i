@@ -83,8 +83,8 @@ class UnigenEventSaver : public AbstractEventSaver {
         void AddDecayToEvent(UEvent *ev, std::shared_ptr<DecayNode> node, int parent_decay);
         TFile*	        mFile;
         TTree*      	mEventTree;
-        TTree*	        mParameterTree;
         Int_t           mDecayIndex;
+
 };
 
 #endif

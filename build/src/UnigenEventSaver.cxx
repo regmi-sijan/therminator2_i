@@ -8,12 +8,8 @@
 using namespace std;
 
 extern TString	sEventDIR;
-extern TString	sTimeStamp;
-extern int	sIntegrateSample;
-extern int	sModel;
-extern int	sRandomize;
 
-UnigenEventSaver::UnigenEventSaver() : mFile(0), mEventTree(0), mParameterTree(0) {
+UnigenEventSaver::UnigenEventSaver() : mFile(0), mEventTree(0) {
 }
 
 void UnigenEventSaver::Save(Event *tEvent, Model *tModel, int tEventCounter)
@@ -34,26 +30,19 @@ void UnigenEventSaver::Save(Event *tEvent, Model *tModel, int tEventCounter)
     mDecayIndex = 0;
 
     // open new file every _EVENTS_PER_FILE_ events
+
+    Configurator *aMainConfig = tModel->GetMainConfig();
+
     if( !((tEventCounter - 1) % kEventsPerFile)) { 
         sprintf(tTempFName,"%sunigen%03i.tmp", sEventDIR.Data(), mFileCounter);
         mFile = new TFile(tTempFName,"RECREATE");
         mFile->cd();
         mEventTree     = new TTree(_EVENTS_TREE_,    "event tree");
-        mParameterTree = new TTree(_PARAMETERS_TREE_,"parameters and model description tree");
+
+        SaveParameters(tModel);
 
         // (void*) cast to avoid some compilation errors on older ROOT versions
-        char tTimeStamp[21];
-        sprintf(tTimeStamp,"%s",sTimeStamp.Data());
-        mEventTree    ->Branch(_EVENTS_BRANCH_,		"UEvent",                                                        &ev                    );   
-        mParameterTree->Branch(_INTEGRATESAMPLE_BRANCH_,	(UInt_t*) &sIntegrateSample,					 "i"			);
-        mParameterTree->Branch(_RANDOMIZE_BRANCH_,		(UInt_t*) &sRandomize,						 "i"			);
-        mParameterTree->Branch(_TIMESTAMP_BRANCH_,		(Char_t*) tTimeStamp,						 _TIMESTAMP_FORMAT_	);
-        mParameterTree->Branch(_MODELID_BRANCH_,		(UInt_t*) &sModel,						 "i"			);
-        mParameterTree->Branch(_MODELNAME_BRANCH_,		(Char_t*) tModel->GetName(),	 _MODELNAME_FORMAT_	);
-        mParameterTree->Branch(_MODELHASH_BRANCH_,		(Char_t*) tModel->GetHash(),	 _MODELHASH_FORMAT_	);
-        mParameterTree->Branch(_MODELDESCRIPTION_BRANCH_,	(Char_t*) tModel->GetDescription(), _MODELDESCRIPTION_FORMAT_);    
-        tModel->AddParameterBranch(mParameterTree);
-        mParameterTree->Fill();    
+        mEventTree    ->Branch(_EVENTS_BRANCH_, "UEvent", &ev);   
         PRINT_DEBUG_2("<UnigenEventSaver::Save>\tCreated file "<<tTempFName);
     }
     // add all Particle entries to file and Event information

@@ -40,7 +40,7 @@
 class Integrator {
   public:
     Integrator(ParticleDB *);
-    Integrator(int aNSamples, ParticleDB *);
+    Integrator(Configurator *, ParticleDB *);
     ~Integrator();
     
     Model* GetModel();
@@ -53,6 +53,9 @@ class Integrator {
   private:
     
     int         mNSamples;
+    double      mTolerance;
+    int         mToleranceInterval;
+    int         mToleranceNSuccessive;
     TRandom2*   mRandom;
     Model*      mFOModel;
     ParticleDB* mDB;

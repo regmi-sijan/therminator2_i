@@ -37,7 +37,7 @@ class Model_Example
 {
   public:
     Model_Example();
-    Model_Example(TRandom2* aRandom);
+    Model_Example(TRandom2* aRandom, Configurator *aMainConfig);
     ~Model_Example();
     
     std::pair<double, double> GetIntegrand(ParticleType* aPartType, bool finiteWidth, bool positionDistribution = false);
@@ -70,7 +70,7 @@ class Model_Example
  * @fn Model_Example::Model_Example()
  * @brief Default constructor.
  *
- * @fn Model_Example::Model_Example(TRandom2* aRandom)
+ * @fn Model_Example::Model_Example(TRandom2* aRandom, Configurator *aMainConfig)
  * @brief Constructor that links a random number generator form Integrator.
  * @param [in] aRandom pointer to <a href="http://root.cern.ch/root/html/TRandom2.html">TRandom2</a> random number generator
  *

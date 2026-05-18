@@ -37,7 +37,7 @@ class Model_SR
 {
   public:
     Model_SR();
-    Model_SR(TRandom2* aRandom);
+    Model_SR(TRandom2* aRandom, Configurator *aMainConfig);
     ~Model_SR();
     
     std::pair<double, double> GetIntegrand(ParticleType* aPartType, bool finiteWidth, bool positionDistribution = false);

@@ -12,10 +12,19 @@ class AbstractEventSaver {
     void SetEventsTemp();
 
   protected:
-    void ReadParameters();  
+    void ReadParameters();
+    void SaveParameters(Model *tModel);
     int	        mFileCounter;
     const int   kEventsPerFile;
     int	        mNumberOfEvents;
+
+    TTree*	        mParameterTree;
+
+    Bool_t          mRandomize;
+    Int_t           mMaxIntegrationSamples;
+    Double_t        mIntegTolerance;
+    Int_t           mIntegToleranceInterval;
+    Int_t           mIntegToleranceNSuccessive;
 
 };
 

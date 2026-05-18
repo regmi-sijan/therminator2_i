@@ -11,8 +11,10 @@ extern void AddLogEntry(const char* aEntry);
 extern Configurator *sMainConfig;
 extern TString	sEventDIR;
 extern int      sParentPID;                                                                                                                                                                
+extern int	    sModel;
+extern TString	sTimeStamp;
 
-AbstractEventSaver::AbstractEventSaver() : mFileCounter(0), kEventsPerFile(_EVENTS_PER_FILE_), mNumberOfEvents(0) {
+AbstractEventSaver::AbstractEventSaver() : mFileCounter(0), kEventsPerFile(_EVENTS_PER_FILE_), mNumberOfEvents(0), mParameterTree(0) {
     FindPreviousEventFiles();
     ReadParameters();
 }
@@ -80,5 +82,44 @@ void AbstractEventSaver::ReadParameters()
     PRINT_MESSAGE("\tDid not find one of the necessary parameters in the parameters file.");
     exit(_ERROR_CONFIG_PARAMETER_NOT_FOUND_);
   }
+}
+
+void AbstractEventSaver::SaveParameters(Model *tModel)
+{
+  Configurator *aMainConfig = tModel->GetMainConfig();
+        mParameterTree = new TTree(_PARAMETERS_TREE_,"parameters and model description tree");
+char tTimeStamp[21];
+        sprintf(tTimeStamp,"%s",sTimeStamp.Data());
+        
+        if (aMainConfig->HasParameter("MaxIntegrateSamples")) {
+            mMaxIntegrationSamples = aMainConfig->GetParameter("MaxIntegrateSamples").Atoi();
+        }
+        if (aMainConfig->HasParameter("IntegTolerance")) {
+            mIntegTolerance = aMainConfig->GetParameter("IntegTolerance").Atof();
+        }
+        if (aMainConfig->HasParameter("IntegToleranceInterval")) {
+            mIntegToleranceInterval = aMainConfig->GetParameter("IntegToleranceInterval").Atoi();
+        }
+        if (aMainConfig->HasParameter("IntegToleranceNSuccessive")) {
+            mIntegToleranceNSuccessive = aMainConfig->GetParameter("IntegToleranceNSuccessive").Atoi();
+        }
+        if (aMainConfig->HasParameter("Randomize")) {
+            mRandomize = aMainConfig->GetParameter("Randomize");
+        }
+
+        mParameterTree->Branch(_MAX_INTEGRATESAMPLE_BRANCH_, &mMaxIntegrationSamples, "i");
+        mParameterTree->Branch(_INTEG_TOLERANCE_BRANCH_, &mIntegTolerance, "f");
+        mParameterTree->Branch(_INTEG_TOLERANCE_INTERVAL_BRANCH_, &mIntegToleranceInterval, "i");
+        mParameterTree->Branch(_INTEG_TOLERANCE_N_SUCCESSIVE_BRANCH_, &mIntegToleranceNSuccessive, "i");
+
+        mParameterTree->Branch(_RANDOMIZE_BRANCH_,		(UInt_t*) &mRandomize,						 "i"			);
+        mParameterTree->Branch(_TIMESTAMP_BRANCH_,		(Char_t*) tTimeStamp,						 _TIMESTAMP_FORMAT_	);
+        mParameterTree->Branch(_MODELID_BRANCH_,		(UInt_t*) &sModel,						 "i"			);
+        mParameterTree->Branch(_MODELNAME_BRANCH_,		(Char_t*) tModel->GetName(),	 _MODELNAME_FORMAT_	);
+        mParameterTree->Branch(_MODELHASH_BRANCH_,		(Char_t*) tModel->GetHash(),	 _MODELHASH_FORMAT_	);
+        mParameterTree->Branch(_MODELDESCRIPTION_BRANCH_,	(Char_t*) tModel->GetDescription(), _MODELDESCRIPTION_FORMAT_);    
+        tModel->AddParameterBranch(mParameterTree);
+        mParameterTree->Fill();    
+
 }
 

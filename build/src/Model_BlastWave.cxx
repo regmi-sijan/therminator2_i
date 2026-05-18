@@ -36,13 +36,10 @@
 using namespace TMath;
 using namespace std;
 
-extern Configurator* sMainConfig;
 extern TString	sModelINI;
 extern TString	sEventDIR;
 extern TString	sTimeStamp;
 extern int	sModel;
-extern int	sRandomize;
-extern int	sIntegrateSample;
 
 Model_BlastWave::Model_BlastWave()
 : Model(),
@@ -51,8 +48,8 @@ Model_BlastWave::Model_BlastWave()
 { 
 }
 
-Model_BlastWave::Model_BlastWave(TRandom2* aRandom)
-: Model(aRandom)
+Model_BlastWave::Model_BlastWave(TRandom2* aRandom, Configurator *aMainConfig)
+: Model(aRandom, aMainConfig)
 {
   mName = "Blast-Wave";
   mThermo = new Thermodynamics();
@@ -131,8 +128,7 @@ void Model_BlastWave::Description()
   oss << "# - chem. potential Mu_S   : " <<MODEL_PAR_DESC(mThermo->GetMuS() * 1000.0,	"[MeV]");
   oss << "# - chem. potential Mu_C   : " <<MODEL_PAR_DESC(mThermo->GetMuC() * 1000.0,	"[MeV]");
   oss << "# Parameters hash (CRC32)  : " <<MODEL_PAR_DESC(mHash,		"");
-  oss << "# Integration samples      : " <<MODEL_PAR_DESC(sIntegrateSample,	"");
-  oss << "# Random seed              : " <<MODEL_PAR_DESC((sRandomize ? "yes" : "no"),"");
+  Describe(oss);
   oss << "# Generation date          : " <<sTimeStamp<<" #"<<endl;
   oss << "##################################################"<< endl;
   mDescription = oss.str();

@@ -34,6 +34,7 @@
 #include <TString.h>
 #include <TRandom2.h>
 #include "THGlobal.h"
+#include "Configurator.h"
 #include "ParticleType.h"
 #include "Particle.h"
 #include "ParticleDB.h"
@@ -48,7 +49,7 @@ class Model
 {
   public:
     Model();
-    Model(TRandom2* aRandom);
+    Model(TRandom2* aRandom, Configurator *aMainConfig);
     virtual ~Model();
     
     virtual std::pair<double, double> GetIntegrand(ParticleType* aPartType, bool finiteWidth, bool positionDistribution = false) = 0;
@@ -59,6 +60,7 @@ class Model
     const char*	GetHash();
     const char*	GetName();
     const char*	GetDescription();
+    Configurator* GetMainConfig() { return mMainConfig; }
 
   protected:
     void	CreateEventSubDir();
@@ -70,6 +72,7 @@ class Model
 
     void GetParticleMass(ParticleType *,bool finiteWidth, double &M, double &spectralFunctionWeight );
 
+    void Describe(std::ostream &);
 
     double	Xt, Xx, Xy, Xz;
     double	Pe, Px, Py, Pz;
@@ -78,11 +81,10 @@ class Model
     TString	mName;
     TString	mDescription;
     TRandom2*	mRandom;
+    Configurator* mMainConfig;
 
     std::map<int, TF1*> *mSpectralFncs;
     std::map<int, double> *mSpectralFncIntegrals;
-    ParticleDB *mDB;
-
 };
 
 #endif

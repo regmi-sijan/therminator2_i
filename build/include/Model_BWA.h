@@ -37,7 +37,7 @@ class Model_BWA
 {
   public:
     Model_BWA();
-    Model_BWA(TRandom2* aRandom);
+    Model_BWA(TRandom2* aRandom, Configurator *aMainConfig);
     ~Model_BWA();
     
     std::pair<double, double> GetIntegrand(ParticleType* aPartType, bool finiteWidth, bool positionDistribution = false);
@@ -99,7 +99,7 @@ class Model_BWA
  * @fn Model_BWA::Model_BWA()
  * @brief Default constructor.
  *
- * @fn Model_BWA::Model_BWA(TRandom2* aRandom)
+ * @fn Model_BWA::Model_BWA(TRandom2* aRandom, Configurator *aMainConfig)
  * @brief Constructor that links a random number generator form Integrator.
  * @param [in] aRandom pointer to <a href="http://root.cern.ch/root/html/TRandom2.html">TRandom2</a> random number generator
  *

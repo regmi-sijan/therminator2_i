@@ -37,7 +37,7 @@ class Model_BlastWave
 {
   public:
     Model_BlastWave();
-    Model_BlastWave(TRandom2* aRandom);
+    Model_BlastWave(TRandom2* aRandom, Configurator *aMainConfig);
     ~Model_BlastWave();
     
     std::pair<double, double> GetIntegrand(ParticleType* aPartType, bool finiteWidth, bool positionDistribution = false);
@@ -81,7 +81,7 @@ class Model_BlastWave
  * @fn Model_BlastWave::Model_BlastWave()
  * @brief Default constructor.
  *
- * @fn Model_BlastWave::Model_BlastWave(TRandom2* aRandom)
+ * @fn Model_BlastWave::Model_BlastWave(TRandom2* aRandom, Configurator *aMainConfig)
  * @brief Constructor that links a random number generator form Integrator.
  * @param [in] aRandom pointer to <a href="http://root.cern.ch/root/html/TRandom2.html">TRandom2</a> random number generator
  *

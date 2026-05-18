@@ -10,8 +10,10 @@ unigendir="/lustre/hades/user/harabasz/unigen_new/UniGen-2.3/set.sh"
 scriptdir = "/cvmfs/hadessoft.gsi.de/install/debian10/root-6.24.02/bin/thisroot.sh"
 
 #whatsin="HubbDeltCaseA_0steps10_fixedPositionUpdate_Spectator_fm_32_JK_noRescale"
-whatsin="HubbDeltCaseB_50steps20_fixedPositionUpdate_spectatorAtRfixedIsospin_specExtrapolationTret_fm_32_JK_protons_req_110.9_Tf_10_a"
+####whatsin="HubbDeltCaseB_50steps10_fixedPositionUpdate_spectatorAtRfixedIsospin_specExtrapolationTret_fm_32_JK_protons_req_110.9_Tf_0_manyspec_a"
 #whatsin="HubbDeltCaseC_0steps10_fixedPositionUpdate_Spectator_fm_32_JK_protons_req_67.8_noRescale"
+
+whatsin="HubbDeltCaseB_0steps10_protons_req_110.9_testSampleShort10trials_new_3"
 
 submissiondir="/lustre/hades/user/harabasz/submit/" + whatsin
 tmpbase="/tmp/harabasz/" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=16)) + "/"
@@ -110,7 +112,8 @@ epsilonList = [0]
 #epsilonList = [-0.6, -0.4, -0.2]
 #deltalist = [0.4]
 
-NoFiles = 1000
+#NoFiles = 1000
+NoFiles = 100
 #NoFiles = 10
 #NoFiles = 1
 
@@ -164,8 +167,8 @@ try:
 except Exception as e:
     print(e)
 
-#command="sbatch --array=1-{3} --mem=2000 --time=0-48:00:00 --partition=long -D {0}  --output={1}/out/slurm-%A_%a.out -- {0}/wrap.sh {0}/jobScript_SL.sh {0}/jobarray.dat {1} {2}".format(submissiondir,outputdir,scriptdir,arrElem+1)
-command="sbatch --array=1-{3} --mem=2000 --time=0-48:00:00 --partition=long -D {0}  --output={1}/out/slurm-%A_%a.out -- {0}/jobScript_SL.sh {0}/jobarray.dat {1} {2}".format(submissiondir,outputdir,scriptdir,arrElem+1)
+command="sbatch --array=1-{3} --mem=2000 --time=0-48:00:00 --partition=long -D {0}  --output={1}/out/slurm-%A_%a.out -- {0}/wrap.sh {0}/jobScript_SL.sh {0}/jobarray.dat {1} {2}".format(submissiondir,outputdir,scriptdir,arrElem+1)
+#command="sbatch --array=1-{3} --mem=2000 --time=0-48:00:00 --partition=long -D {0}  --output={1}/out/slurm-%A_%a.out -- {0}/jobScript_SL.sh {0}/jobarray.dat {1} {2}".format(submissiondir,outputdir,scriptdir,arrElem+1)
 #command="sbatch --array=1-{3} --mem=2000 --time=0-2:00:00 --partition=long -D {0}  --output={1}/out/slurm-%A_%a.out -- {0}/jobScript_SL.sh {0}/jobarray.dat {1} {2}".format(submissiondir,outputdir,scriptdir,arrElem+1)
 print(command)
 os.system(command)

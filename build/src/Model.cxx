@@ -35,30 +35,27 @@
 using namespace std;
 using namespace TMath;
 
-extern Configurator *sMainConfig;
 extern TString	sEventDIR;
 extern int	sModel;
-extern int	sIntegrateSample;
-extern int	sRandomize;
 
 Model::Model()
     : Xt(0.0), Xx(0.0), Xy(0.0), Xz(0.0),
     Pe(0.0), Px(0.0), Py(0.0), Pz(0.0),
     mHyperCube(0.0),
     mRandom(0),
-    mSpectralFncs(0), mSpectralFncIntegrals(0),
-    mDB(0)
+    mMainConfig(0),
+    mSpectralFncs(0), mSpectralFncIntegrals(0)
 {
   mName="";
   mHash="";
   mDescription="";
 }
 
-Model::Model(TRandom2* aRandom)
+Model::Model(TRandom2* aRandom, Configurator *aMainConfig)
 : Xt(0.0), Xx(0.0), Xy(0.0), Xz(0.0),
 Pe(0.0), Px(0.0), Py(0.0), Pz(0.0),
 mHyperCube(0.0),
-mRandom(aRandom)
+mRandom(aRandom), mMainConfig(aMainConfig)
 {
   mName="";
   mHash="";
@@ -109,7 +106,7 @@ const char* Model::GetDescription()
 void Model::CreateEventSubDir()
 {
   struct stat tStatus;
-  TString tEventDir = sMainConfig->GetParameter("EventDir"); tEventDir.Prepend("./");
+  TString tEventDir = mMainConfig->GetParameter("EventDir"); tEventDir.Prepend("./");
   TString tSubDirs  = sEventDIR;
   int     tPos      = 0;
 
@@ -274,4 +271,23 @@ void Model::GetParticleMass(ParticleType *aPartType, bool finiteWidth, double &M
     }
 }
 
-
+void Model::Describe(std::ostream &oss) {
+    if (mMainConfig->HasParameter("MaxIntegrateSamples")) {
+        oss << "# Max integration samples : " <<MODEL_PAR_DESC(mMainConfig->GetParameter("MaxIntegrateSamples"),     "");
+    }
+    if (mMainConfig->HasParameter("IntegTolerance")) {
+        oss << "# Integral tolerance      : " <<MODEL_PAR_DESC(mMainConfig->GetParameter("IntegTolerance"),     "");
+    }
+    if (mMainConfig->HasParameter("IntegToleranceInterval")) {
+        oss << "# Interval between \n# tolerance tests          : " 
+            <<MODEL_PAR_DESC(mMainConfig->GetParameter("IntegToleranceInterval"),     "");
+    }
+    if (mMainConfig->HasParameter("IntegToleranceNSuccessive")) {
+        oss << "# Required successive changes \n# below the tolerance      : " 
+            <<MODEL_PAR_DESC(mMainConfig->GetParameter("IntegToleranceNSuccessive"),     "");
+    }
+    if (mMainConfig->HasParameter("Randomize")) {
+        oss << "# Random seed              : " 
+            <<MODEL_PAR_DESC((mMainConfig->GetParameter("Randomize").Atoi() ? "yes" : "no"),"");   
+    }
+}

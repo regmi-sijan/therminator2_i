@@ -49,9 +49,12 @@ TString Configurator::GetParameter(const char* aKeyword) noexcept(false)
   vector<Parameter>::iterator Iter;
   for (Iter = mParameters.begin(); Iter != mParameters.end(); Iter++)
     if (Iter->keyword == aKeyword) {
-      PRINT_DEBUG_2("<Configurator::GetParameter>\tReturning value " << Iter->value << " for keyword " << Iter->keyword);
+      //PRINT_DEBUG_2("<Configurator::GetParameter>\tReturning value " << Iter->value << " for keyword " << Iter->keyword);
+      PRINT_MESSAGE("<Configurator::GetParameter>\tReturning value " << Iter->value << " for keyword " << Iter->keyword);
+      
       return Iter->value;
     }
+  PRINT_MESSAGE("<Configurator::GetParameter>\tError: Parameter not found for keyword " << aKeyword);
   throw *(new TString(aKeyword));
 }
 
@@ -76,5 +79,14 @@ int Configurator::PrintParameters()
   PRINT_MESSAGE("<Configurator::PrintParameters>");
   for (Iter = mParameters.begin(); Iter != mParameters.end(); Iter++)
     PRINT_MESSAGE("\tKeyword: " << Iter->keyword << "\tValue: " << Iter->value);
+  return 0;
+}
+
+int Configurator::PrintParameters(std::ostream &oss)
+{
+  vector<Parameter>::iterator Iter;
+  PRINT_MESSAGE_TO(oss, "<Configurator::PrintParameters>");
+  for (Iter = mParameters.begin(); Iter != mParameters.end(); Iter++)
+    PRINT_MESSAGE_TO(oss, "\tKeyword: " << Iter->keyword << "\tValue: " << Iter->value);
   return 0;
 }

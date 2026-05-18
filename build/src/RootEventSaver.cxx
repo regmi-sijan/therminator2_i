@@ -9,9 +9,7 @@ using namespace std;
 
 extern TString	sEventDIR;
 extern TString	sTimeStamp;
-extern int	sIntegrateSample;
 extern int	sModel;
-extern int	sRandomize;
 
 RootEventSaver::RootEventSaver() : mFile(0), mEventTree(0), mParameterTree(0), mParticleTree(0) {
 }
@@ -33,23 +31,11 @@ void RootEventSaver::Save(Event *tEvent, Model *tModel, int tEventCounter)
     mFile->cd();
     mParticleTree  = new TTree(_PARTICLES_TREE_, "particle tree");    
     mEventTree     = new TTree(_EVENTS_TREE_,    "event tree");
-    mParameterTree = new TTree(_PARAMETERS_TREE_,"parameters and model description tree");
-    // (void*) cast to avoid some compilation errors on older ROOT versions
-    char tTimeStamp[21];
-    sprintf(tTimeStamp,"%s",sTimeStamp.Data());
+
     mParticleTree ->Branch(_PARTICLE_BRANCH_,		&tPartCoor,							 _PARTICLE_FORMAT_	);
     mEventTree    ->Branch(_EVENTS_BRANCH_,		&tStructEvent,							 _EVENTS_FORMAT_	);   
-    mParameterTree->Branch(_INTEGRATESAMPLE_BRANCH_,	(UInt_t*) &sIntegrateSample,					 "i"			);
-    mParameterTree->Branch(_RANDOMIZE_BRANCH_,		(UInt_t*) &sRandomize,						 "i"			);
-    mParameterTree->Branch(_TIMESTAMP_BRANCH_,		(Char_t*) tTimeStamp,						 _TIMESTAMP_FORMAT_	);
-    mParameterTree->Branch(_MODELID_BRANCH_,		(UInt_t*) &sModel,						 "i"			);
-    if (tModel != NULL) {
-      mParameterTree->Branch(_MODELNAME_BRANCH_,		(Char_t*) tModel->GetName(),	 _MODELNAME_FORMAT_	);
-      mParameterTree->Branch(_MODELHASH_BRANCH_,		(Char_t*) tModel->GetHash(),	 _MODELHASH_FORMAT_	);
-      mParameterTree->Branch(_MODELDESCRIPTION_BRANCH_,	(Char_t*) tModel->GetDescription(), _MODELDESCRIPTION_FORMAT_);    
-      tModel->AddParameterBranch(mParameterTree);
-    }
-    mParameterTree->Fill();    
+
+    SaveParameters(tModel);
     PRINT_DEBUG_2("<EventGenerator::SaveAsRoot>\tCreated file "<<tTempFName);
   }
 // add all Particle entries to file and Event information

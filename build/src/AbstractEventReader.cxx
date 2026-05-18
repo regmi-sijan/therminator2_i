@@ -42,8 +42,6 @@ extern Configurator *sMainConfig;
 extern TString	sMainINI;
 extern TString	sModelINI;
 extern int	sModel;
-extern int	sRandomize;
-extern int	sIntegrateSample;
 extern int	sParentPID;
 
 using namespace std;
@@ -129,7 +127,6 @@ void AbstractEventReader::ReadParameters()
 
   try {
     mNumberOfEvents	= (sMainConfig->GetParameter("NumberOfEvents")).Atoi();
-    sIntegrateSample	= (sMainConfig->GetParameter("IntegrateSamples")).Atoi();
 
     mEventSubDir = tModelParam->GetParameter("EventSubDir");
   }

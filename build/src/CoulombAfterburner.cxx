@@ -32,6 +32,9 @@ TVector3 CoulombAfterburner::CalculateTotalForce(
     std::list<Particle>::iterator &tPartIter, std::list<Particle> *tParticles, int **tBestIs, double tCurrentTime,
     std::vector<TLorentzVector> *tCoordinates, std::vector<TVector3> *tVelocities, std::vector<TVector3> *tAccelerations)
 {
+    if (TMath::Abs(tPartIter->GetParticleType()->GetPDGCode()) == 72212 || TMath::Abs(tPartIter->GetParticleType()->GetPDGCode()) == 72112) {
+        return TVector3();
+    }
     Int_t tQ = tPartIter->GetParticleType()->GetCharge();
     // TVector3 tForceTotal;
     TVector3 tTermCoulTotal;
@@ -218,12 +221,28 @@ TVector3 CoulombAfterburner::CalculateTotalForce(
     return tForceTotal;
 }
 
-CoulombAfterburner::CoulombAfterburner(int aSteps, double aStepSize, Double_t aR, AbstractEventSaver *aEventSaver) 
-    : m_nSteps(aSteps), m_StepSize(aStepSize / kHbarC), mR(aR), mEventSaver(aEventSaver)
+CoulombAfterburner::CoulombAfterburner(int aSteps, double aStepSize, Double_t aR, AbstractEventSaver *aEventSaver, ParticleDB *tPartDB) 
+    : m_nSteps(aSteps), m_StepSize(aStepSize / kHbarC), mR(aR), mEventSaver(aEventSaver), m_hNpartImpB(nullptr)
 {
+    m_mcg=new TGlauberMC("Au","Au",23.8,0);
+    ParticleType *tProtonType = tPartDB->FindByPID(2212);
+    ParticleType *tNeutronType = tPartDB->FindByPID(2112);
+    mProtonSpectatorAType = new ParticleType(*tProtonType);
+    mNeutronSpectatorAType = new ParticleType(*tNeutronType);
+    mProtonSpectatorAType->SetPDGCode(72212);
+    mNeutronSpectatorAType->SetPDGCode(72112);
+    mProtonSpectatorBType = new ParticleType(*tProtonType);
+    mNeutronSpectatorBType = new ParticleType(*tNeutronType);
+    mProtonSpectatorBType->SetPDGCode(-72212);
+    mNeutronSpectatorBType->SetPDGCode(-72112);
 }
 CoulombAfterburner::~CoulombAfterburner()
 {
+    delete m_mcg;
+    delete mProtonSpectatorAType;
+    delete mNeutronSpectatorAType;
+    delete mProtonSpectatorBType;
+    delete mNeutronSpectatorBType;
 }
 
 TGraph *initImpBGraph() {
@@ -348,12 +367,35 @@ Int_t CoulombAfterburner::TotalCharge(std::list<Particle> *tParticles)
         // Fixed isospin means:
         // Don't add deuteron charge, because it's either caseB or we use deuterons from dedicated caseC list
         // Total charge is the charge of primary particles
-        if (tParticle.pid != 80000 && tParticle.pid == tParticle.fatherpid && tParticle.GetParticleType() != nullptr)
+        if (tParticle.pid != 80000 && tParticle.pid / 10000 != 7 && tParticle.pid == tParticle.fatherpid && tParticle.GetParticleType() != nullptr)
         {
+           // cout << "partial charge " << tResult << " " << tParticle.pid << " " << tParticles->size() << endl;
             tResult += tParticle.GetParticleType()->GetCharge();
         }
     }
     return tResult;
+}
+
+Float_t CoulombAfterburner::SampleImpB(std::list<Particle> *tParticles) {
+    Float_t tA = 197.;
+    Float_t tZ = 79.; // because they are used in fractions
+    Int_t tTotalCharge = TotalCharge(tParticles);
+    Int_t tNpart = tTotalCharge * tA / tZ;
+    cout << "total charge " << tTotalCharge << " npart " << tNpart << " all parts " << tParticles->size() << endl;    
+
+    if (m_hImpBprojs.count(tNpart) <= 0) {
+        TString tHistName = Form("%s_%i", m_hNpartImpB->GetName(), tNpart);
+        Int_t tBin = m_hNpartImpB->GetYaxis()->FindBin(tNpart);
+        TH1F *tProj = (TH1F*)m_hNpartImpB->ProjectionX(tHistName, tBin, tBin);
+        m_hImpBprojs[tNpart] = tProj;
+        if (tProj->Integral() <= 0) {
+cout << "ERROR : integral 0 for projection in bin " << tBin << " Npart " << tNpart << endl;
+        }
+    }
+    Float_t tImpB = m_hImpBprojs.at(tNpart)->GetRandom() / kHbarC;;
+
+   // Float_t tImpB = m_gImpBNPart->Eval(tNpart) / kHbarC; // Distances are in 1/MeV during calculations
+    return tImpB;
 }
 
 ParticleType *CoulombAfterburner::SpectatorType(std::list<Particle> *tParticles, Float_t &tSpectatorX) {
@@ -386,34 +428,68 @@ ParticleType *CoulombAfterburner::SpectatorType(std::list<Particle> *tParticles,
     return tSpectatorType;
 }
 
-ParticleType *CoulombAfterburner::AddSpectators(std::list<Particle> *tParticles, Float_t tEarliestTime)
+Int_t CoulombAfterburner::AddSpectators(std::list<Particle> *tParticles, Float_t tEarliestTime)
 {
-    Float_t tSpectatorX;
-    ParticleType *tSpectatorType = SpectatorType(tParticles, tSpectatorX);
-    Float_t tSpectatorMass = tSpectatorType->GetMass();
+    Int_t tNspec = 0;
 
-    Float_t tSpectatorBeta = 0.63; // TODO: make an external parameter
-    Float_t tSpectatorGamma = 1/TMath::Sqrt(1 - tSpectatorBeta*tSpectatorBeta);
-    Float_t tSpectatorPz = tSpectatorGamma * tSpectatorMass * tSpectatorBeta;
-    Float_t tSpectatorE = tSpectatorGamma * tSpectatorMass;
-    Float_t tSpectatorZ = tSpectatorBeta * tEarliestTime;
-    // Linear interpolation between:
-    // tNpart = 2*tA -> tSpectatorX = tR
-    // tNpart = 0 -> tSpectatorX = tImpB
-    //Float_t tSpectatorX = tImpB * tA / (2 * tA - tNpart);
-
-    if (USE_SPECTATORS) {
-        Particle tSpectator1(tSpectatorType);
-        tSpectator1.SetParticlePX(tSpectatorE, 0, 0, tSpectatorPz, tEarliestTime, tSpectatorX, 0, tSpectatorZ);
-       // tSpectator1.SetParticlePX(tSpectatorE, 0, 0, tSpectatorPz, 0, tSpectatorX, 0, 0);
-        tParticles->push_back(tSpectator1);
-
-        Particle tSpectator2(tSpectatorType);
-        tSpectator1.SetParticlePX(tSpectatorE, 0, 0, -tSpectatorPz, tEarliestTime, -tSpectatorX, 0, -tSpectatorZ);
-       // tSpectator2.SetParticlePX(tSpectatorE, 0, 0, -tSpectatorPz, 0, -tSpectatorX, 0, 0);
-        tParticles->push_back(tSpectator2);
+    if (m_hNpartImpB == nullptr) {
+        cout << "POINTER " << m_mcg << endl;
+        m_mcg->SetMinDistance(0.9);
+        m_mcg->SetNodeDistance(0);
+        m_mcg->SetCalcLength(0);
+        m_mcg->SetCalcArea(0);
+        m_mcg->SetCalcCore(0);
+        m_mcg->SetDetail(99);
+       // m_mcg->Run(100000);
+        m_mcg->Run(10000);
+        TNtuple  *nt=m_mcg->GetNtuple();
+        m_hNpartImpB = new TH2F("hNpartImpB","hNpartImpB",100,0,20,400,0,400);
+        nt->Project("hNpartImpB","Npart:B");
     }
-    return tSpectatorType;
+    Float_t tImpB = SampleImpB(tParticles) * kHbarC;
+    m_mcg->SetBmin(tImpB);
+    m_mcg->SetBmax(tImpB);
+    m_mcg->Run(1);
+    TObjArray* tNucleons=m_mcg->GetNucleons();
+    Int_t nNucls=tNucleons->GetEntries();
+    for (Int_t iNucl=0; iNucl<nNucls; ++iNucl) {
+        TGlauNucleon *tNucl=(TGlauNucleon *)tNucleons->At(iNucl);
+        Int_t tSpectatorDir = +1;
+        if (tNucl->IsSpectator()) {
+            ParticleType *tSpectatorType;
+            if (tNucl->IsInNucleusA()) {
+                if (tNucl->IsProton()) {
+                    tSpectatorType = mProtonSpectatorAType;
+                } else {                              
+                    tSpectatorType = mNeutronSpectatorAType;
+                }
+            } else {
+                if (tNucl->IsProton()) {
+                    tSpectatorType = mProtonSpectatorBType;
+                } else {                               
+                    tSpectatorType = mNeutronSpectatorBType;
+                }
+                tSpectatorDir = -1;
+            }
+           // Float_t tSpectatorMass = tSpectatorType->GetMass();
+            Float_t tSpectatorMass = (79 * 0.9382720 + (197-79) * 0.9395653)/197;
+
+            Float_t tSpectatorBeta = 0.63; // TODO: make an external parameter
+            Float_t tSpectatorGamma = 1/TMath::Sqrt(1 - tSpectatorBeta*tSpectatorBeta);
+            Float_t tSpectatorPz = tSpectatorDir * tSpectatorGamma * tSpectatorMass * tSpectatorBeta;
+            Float_t tSpectatorE = tSpectatorGamma * tSpectatorMass;
+            Float_t tSpectatorShift = tSpectatorDir * tSpectatorBeta * tEarliestTime;
+            Float_t tSpectatorX = tNucl->GetX() / kHbarC;
+            Float_t tSpectatorY = tNucl->GetY() / kHbarC;
+            Float_t tSpectatorZ = tNucl->GetZ() / kHbarC / tSpectatorGamma + tSpectatorShift; // Lorentz contraction and shift
+
+            Particle tSpectator(tSpectatorType);
+            tSpectator.SetParticlePX(tSpectatorE, 0, 0, tSpectatorPz, tEarliestTime, tSpectatorX, tSpectatorY, tSpectatorZ);
+            tParticles->push_back(tSpectator);
+            ++tNspec;
+        }
+    }
+    return tNspec;
 }
 
 void CoulombAfterburner::Apply(Event *tEvent)
@@ -423,23 +499,29 @@ void CoulombAfterburner::Apply(Event *tEvent)
     bool debug = false;
 
     std::list<Particle> *tParticles = tEvent->GetParticleList();
+    double tEarliestTime = std::numeric_limits<double>::quiet_NaN();
+    for (auto tPartIter = tParticles->begin(); tPartIter != tParticles->end(); ++tPartIter) {
+        if (std::isnan(tEarliestTime) || tPartIter->t < tEarliestTime)
+        {
+            tEarliestTime = tPartIter->t;
+        }
+    }
     
-    unsigned long N = tParticles->size() + 2;
+    Int_t tNspec = 0;
+    if (USE_SPECTATORS) {
+        tNspec = AddSpectators(tParticles, tEarliestTime);
+    }
+    unsigned long N = tParticles->size() + tNspec;
     std::vector<TLorentzVector> *tCoordinates = new std::vector<TLorentzVector>[N];
     std::vector<TVector3> *tVelocities = new std::vector<TVector3>[N];
     std::vector<TVector3> *tAccelerations = new std::vector<TVector3>[N];
     double *tDecayTimes = new double[N];
     unsigned int *tFirstStepExists = new unsigned int[N];
     unsigned int *tLastStepExists = new unsigned int[N];
-    double tEarliestTime = std::numeric_limits<double>::quiet_NaN();
-    auto tPartIter = tParticles->begin();
-    for (; tPartIter != tParticles->end(); ++tPartIter)
+    
+    for (auto tPartIter = tParticles->begin(); tPartIter != tParticles->end(); ++tPartIter)
     {
         tCoordinates[tPartIter->eid] = std::vector<TLorentzVector>();
-        if (std::isnan(tEarliestTime) || tPartIter->t < tEarliestTime)
-        {
-            tEarliestTime = tPartIter->t;
-        }
         if (tPartIter->decayed)
         {
             std::list<Particle>::iterator tChildPartIter = tParticles->begin();
@@ -472,9 +554,9 @@ void CoulombAfterburner::Apply(Event *tEvent)
             tLastStepExists[tPartIter->eid] = m_nSteps - 1;
         }
     }
-
-    ParticleType *tSpectatorType = AddSpectators(tParticles, tEarliestTime);
-
+    // if (USE_SPECTATORS) {
+    //     Int_t tNspec = AddSpectators(tParticles, tEarliestTime);
+    // }
     int **tBestIs = new int *[N];
     for (unsigned int ai = 0; ai < N; ++ai)
     {
@@ -496,55 +578,62 @@ void CoulombAfterburner::Apply(Event *tEvent)
         std::list<Particle>::iterator tPartIter = tParticles->begin();
         for (; tPartIter != tParticles->end(); ++tPartIter)
         {
-/*
-            if (TString(tPartIter->GetParticleType()->GetName()).Contains("Spectator")) {
-                cout << " at step " << iStep << " spectator is ";
-                cout << "x(" << tPartIter->x << ", " << tPartIter->y << ", " << tPartIter->z << "), ";
-                cout << "p(" << tPartIter->px << ", " << tPartIter->py << ", " << tPartIter->pz << ")" << endl;
-            }
-*/
+            /*
+               if (TString(tPartIter->GetParticleType()->GetName()).Contains("Spectator")) {
+               cout << " at step " << iStep << " spectator is ";
+               cout << "x(" << tPartIter->x << ", " << tPartIter->y << ", " << tPartIter->z << "), ";
+               cout << "p(" << tPartIter->px << ", " << tPartIter->py << ", " << tPartIter->pz << ")" << endl;
+               }
+               */
             Int_t tQ = tPartIter->GetParticleType()->GetCharge();
             TVector3 tPartPos(tPartIter->x, tPartIter->y, tPartIter->z); // 1/GeV
-            if (tQ != 0 && iStep >= tFirstStepExists[tPartIter->eid] && iStep <= tLastStepExists[tPartIter->eid])
+            if (iStep >= tFirstStepExists[tPartIter->eid] && iStep <= tLastStepExists[tPartIter->eid])
             {
                 tCoordinates[tPartIter->eid].push_back(TLorentzVector(tPartPos, tCurrentTime)); // 1/GeV
-                TVector3 tPartMom(tPartIter->px, tPartIter->py, tPartIter->pz);
-                double tP2 = tPartMom.Mag2();
-                double tM2 = TMath::Power(tPartIter->GetParticleType()->GetMass(), 2);
-                TVector3 tV(0, 0, 0);
-                if (tP2 > 0 && TMath::Finite(tP2))
+                if (tQ != 0)
                 {
-                    tV = 1. / TMath::Sqrt(tM2 / tP2 + 1) * tPartMom.Unit();
-                }
-                tVelocities[tPartIter->eid].push_back(tV); // []
-                if (debug && !TMath::Finite(tV.Mag()))
-                {
-                    cout << "In step " << iStep << " ERROR, infinite velocity " << tPartMom.X() << " " << tPartMom.Y() << " " << tPartMom.Z() << endl;
-                    cout << "In step " << iStep << " ERROR, infinite velocity " << tV.X() << " " << tV.Y() << " " << tV.Z() << endl;
-                }
+                    // cout << tCoordinates->size() << " " << tPartIter->eid << " " << tPartIter->pid << " " << tParticles->size() << endl;
+                    // cout << tCoordinates[tPartIter->eid].size() << endl;
+                    // cout << "===" << endl;
+                    // tCoordinates[tPartIter->eid].push_back(TLorentzVector(tPartPos, tCurrentTime)); // 1/GeV
+                    TVector3 tPartMom(tPartIter->px, tPartIter->py, tPartIter->pz);
+                    double tP2 = tPartMom.Mag2();
+                    double tM2 = TMath::Power(tPartIter->GetParticleType()->GetMass(), 2);
+                    TVector3 tV(0, 0, 0);
+                    if (tP2 > 0 && TMath::Finite(tP2))
+                    {
+                        tV = 1. / TMath::Sqrt(tM2 / tP2 + 1) * tPartMom.Unit();
+                    }
+                    tVelocities[tPartIter->eid].push_back(tV); // []
+                    if (debug && !TMath::Finite(tV.Mag()))
+                    {
+                        cout << "In step " << iStep << " ERROR, infinite velocity " << tPartMom.X() << " " << tPartMom.Y() << " " << tPartMom.Z() << endl;
+                        cout << "In step " << iStep << " ERROR, infinite velocity " << tV.X() << " " << tV.Y() << " " << tV.Z() << endl;
+                    }
 
-                if (iStep == tFirstStepExists[tPartIter->eid])
-                {
-                    tAccelerations[tPartIter->eid].push_back(TVector3(0, 0, 0));
-                }
-                else
-                {
-                    if (tFirstStepExists[tPartIter->eid] < 0)
+                    if (iStep == tFirstStepExists[tPartIter->eid])
                     {
-                        cerr << tParticles->size() << " " << N << " " << tPartIter->eid << " " << sizeof(tFirstStepExists) / sizeof(int *) << " " << tFirstStepExists[tPartIter->eid] << " " << iStep - tFirstStepExists[tPartIter->eid] << " " << iStep - tFirstStepExists[tPartIter->eid] - 1 << " " << iStep << " " << tVelocities[tPartIter->eid].size() << endl;
+                        tAccelerations[tPartIter->eid].push_back(TVector3(0, 0, 0));
                     }
-                    TVector3 &tV1 = tVelocities[tPartIter->eid][iStep - tFirstStepExists[tPartIter->eid] - 1];
-                    TVector3 &tV2 = tVelocities[tPartIter->eid][iStep - tFirstStepExists[tPartIter->eid]];
-                    TVector3 tAcce = 1. / (m_StepSize) * (tV2 - tV1);
-                    if (debug && !TMath::Finite(tAcce.Z()))
+                    else
                     {
-                        cout << "Error, infinite acceleration " << iStep << " " << tVelocities[tPartIter->eid].size() << endl;
-                        cout << "Error, infinite acceleration " << tAcce.X() << " " << tAcce.Y() << " " << tAcce.Z() << endl;
-                        cout << "Error, infinite acceleration " << tV1.X() << " " << tV1.Y() << " " << tV1.Z() << endl;
-                        cout << "Error, infinite acceleration " << tV2.X() << " " << tV2.Y() << " " << tV2.Z() << endl;
-                        cout << "Error, infinite acceleration " << tFirstStepExists[tPartIter->eid] << " " << tLastStepExists[tPartIter->eid] << endl;
+                        if (tFirstStepExists[tPartIter->eid] < 0)
+                        {
+                            cerr << tParticles->size() << " " << N << " " << tPartIter->eid << " " << sizeof(tFirstStepExists) / sizeof(int *) << " " << tFirstStepExists[tPartIter->eid] << " " << iStep - tFirstStepExists[tPartIter->eid] << " " << iStep - tFirstStepExists[tPartIter->eid] - 1 << " " << iStep << " " << tVelocities[tPartIter->eid].size() << endl;
+                        }
+                        TVector3 &tV1 = tVelocities[tPartIter->eid][iStep - tFirstStepExists[tPartIter->eid] - 1];
+                        TVector3 &tV2 = tVelocities[tPartIter->eid][iStep - tFirstStepExists[tPartIter->eid]];
+                        TVector3 tAcce = 1. / (m_StepSize) * (tV2 - tV1);
+                        if (debug && !TMath::Finite(tAcce.Z()))
+                        {
+                            cout << "Error, infinite acceleration " << iStep << " " << tVelocities[tPartIter->eid].size() << endl;
+                            cout << "Error, infinite acceleration " << tAcce.X() << " " << tAcce.Y() << " " << tAcce.Z() << endl;
+                            cout << "Error, infinite acceleration " << tV1.X() << " " << tV1.Y() << " " << tV1.Z() << endl;
+                            cout << "Error, infinite acceleration " << tV2.X() << " " << tV2.Y() << " " << tV2.Z() << endl;
+                            cout << "Error, infinite acceleration " << tFirstStepExists[tPartIter->eid] << " " << tLastStepExists[tPartIter->eid] << endl;
+                        }
+                        tAccelerations[tPartIter->eid].push_back(tAcce); // GeV
                     }
-                    tAccelerations[tPartIter->eid].push_back(tAcce); // GeV
                 }
             }
         }
@@ -554,6 +643,7 @@ void CoulombAfterburner::Apply(Event *tEvent)
         {
 
             TVector3 tForceTotal;
+            // For spectator nucleons, the force stays zero
             // Possibly reuse calculation from the previous step.
             if (tTotalForcesLast != NULL) {
                 tForceTotal = tTotalForcesLast[tPartIter->eid];
@@ -562,7 +652,7 @@ void CoulombAfterburner::Apply(Event *tEvent)
                 if (tQ != 0 && iStep >= tFirstStepExists[tPartIter->eid] && iStep <= tLastStepExists[tPartIter->eid])
                 {
                     tForceTotal = CalculateTotalForce(tPartIter, tParticles, tBestIs, tCurrentTime,
-                                                  tCoordinates, tVelocities, tAccelerations);
+                            tCoordinates, tVelocities, tAccelerations);
                 }
             }
             tTotalForces[tPartIter->eid] = tForceTotal;
@@ -584,7 +674,7 @@ void CoulombAfterburner::Apply(Event *tEvent)
             if (tP2 > 0 && TMath::Finite(tP2))
             {                                                                           // guardian
                 tPartPos += (m_StepSize / TMath::Sqrt(tM2 / tP2 + 1)) * tPartMom.Unit(); // 1/GeV
-                            + (0.5 / fM / kHbarC) * TMath::Power(m_StepSize * kHbarC, 2) * tForceTotal; // 1/GeV (first 1/kHbarC should give this)
+                + (0.5 / fM / kHbarC) * TMath::Power(m_StepSize * kHbarC, 2) * tForceTotal; // 1/GeV (first 1/kHbarC should give this)
                 if (debug && !TMath::Finite(tPartPos.Mag()))
                 {
                     cout << "updating position: " << tM2 << " " << tP2 << " " << tPartMom.Mag() << endl;
@@ -612,7 +702,7 @@ void CoulombAfterburner::Apply(Event *tEvent)
             if (tQ != 0 && iStep >= tFirstStepExists[tPartIter->eid] && iStep <= tLastStepExists[tPartIter->eid])
             {
                 tForceTotal = CalculateTotalForce(tPartIter, tParticles, tBestIs, tCurrentTime,
-                                                  tCoordinates, tVelocities, tAccelerations);
+                        tCoordinates, tVelocities, tAccelerations);
             }
             tTotalForces[tPartIter->eid] = tForceTotal;
         }
@@ -624,7 +714,7 @@ void CoulombAfterburner::Apply(Event *tEvent)
             TVector3 tPartMom(tPartIter->px, tPartIter->py, tPartIter->pz);
 
             TVector3 tForceTotal = 0.5 * (tTotalForces[tPartIter->eid] + tTotalForcesLast[tPartIter->eid]);
-           // TVector3 tForceTotal = TVector3(0,0,0);
+            // TVector3 tForceTotal = TVector3(0,0,0);
             TVector3 tImpulse = (m_StepSize * kHbarC) * tForceTotal; // GeV/fm * (1/GeV) * GeV*fm = GeV
 
             double tP2 = tPartMom.Mag2();
@@ -645,19 +735,21 @@ void CoulombAfterburner::Apply(Event *tEvent)
         }
     }
     // Writing back to particles' objects original position, to not change HBT radii
-    tPartIter = tParticles->begin();
-    for (; tPartIter != tParticles->end(); ++tPartIter)
+    for (auto tPartIter = tParticles->begin(); tPartIter != tParticles->end(); ++tPartIter)
     {
+       // cout << tPartIter->eid << " " << tPartIter->pid << " " << tCoordinates[tPartIter->eid].size() << " " << tPartIter->z << " ";
         if (tCoordinates[tPartIter->eid].size() > 0)
         {
             Float_t tPartTime =  tCoordinates[tPartIter->eid].front().T();
             TVector3 tPartPos = tCoordinates[tPartIter->eid].front().Vect();
             TVector3 tPartPosFinal(tPartIter->x, tPartIter->y, tPartIter->z);
+           // cout << tPartPos.Z() << " ";
             tPartIter->t = tPartTime;
             tPartIter->x = tPartPos.X();
             tPartIter->y = tPartPos.Y();
             tPartIter->z = tPartPos.Z();
         }
+       // cout << endl;
     }
     delete[] tBestIs;
 

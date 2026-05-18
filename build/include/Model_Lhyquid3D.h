@@ -38,7 +38,7 @@ class Model_Lhyquid3D
 {
   public:
     Model_Lhyquid3D();
-    Model_Lhyquid3D(TRandom2* aRandom);
+    Model_Lhyquid3D(TRandom2* aRandom, Configurator *aMainConfig);
     ~Model_Lhyquid3D();
     
     std::pair<double, double> GetIntegrand(ParticleType* aPartType, bool finiteWidth, bool positionDistribution = false);
@@ -65,7 +65,7 @@ class Model_Lhyquid3D
  * @fn Model_Lhyquid3D::Model_Lhyquid3D()
  * @brief Default constructor.
  *
- * @fn Model_Lhyquid3D::Model_Lhyquid3D(TRandom2* aRandom)
+ * @fn Model_Lhyquid3D::Model_Lhyquid3D(TRandom2* aRandom, Configurator *aMainConfig)
  * @brief Constructor that links a random number generator form Integrator.
  * @param [in] aRandom pointer to <a href="http://root.cern.ch/root/html/TRandom2.html">TRandom2</a> random number generator
  *

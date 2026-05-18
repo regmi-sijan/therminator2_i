@@ -38,7 +38,7 @@ class Model_Lhyquid2DBI
 {
   public:
     Model_Lhyquid2DBI();
-    Model_Lhyquid2DBI(TRandom2* aRandom);
+    Model_Lhyquid2DBI(TRandom2* aRandom, Configurator *aMainConfig);
     ~Model_Lhyquid2DBI();
     
     std::pair<double, double> GetIntegrand(ParticleType* aPartType, bool finiteWidth, bool positionDistribution = false);
@@ -66,7 +66,7 @@ class Model_Lhyquid2DBI
  * @fn Model_Lhyquid2DBI::Model_Lhyquid2DBI()
  * @brief Default constructor.
  *
- * @fn Model_Lhyquid2DBI::Model_Lhyquid2DBI(TRandom2* aRandom)
+ * @fn Model_Lhyquid2DBI::Model_Lhyquid2DBI(TRandom2* aRandom, Configurator *aMainConfig)
  * @brief Constructor that links a random number generator form Integrator.
  * @param [in] aRandom pointer to <a href="http://root.cern.ch/root/html/TRandom2.html">TRandom2</a> random number generator
  *

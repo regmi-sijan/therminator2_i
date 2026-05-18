@@ -36,16 +36,14 @@ using namespace std;
 
 extern TString	sTimeStamp;
 extern int	sModel;
-extern int	sRandomize;
-extern int	sIntegrateSample;
 
 Model_Lhyquid3D::Model_Lhyquid3D()
 : Model(), Hypersurface_Lhyquid3D()
 {
 }
 
-Model_Lhyquid3D::Model_Lhyquid3D(TRandom2* aRandom)
-: Model(aRandom), Hypersurface_Lhyquid3D()
+Model_Lhyquid3D::Model_Lhyquid3D(TRandom2* aRandom, Configurator *aMainConfig)
+: Model(aRandom, aMainConfig), Hypersurface_Lhyquid3D()
 {
   mName = "Lhyquid 3+1";
   ReadParameters();
@@ -124,8 +122,7 @@ void Model_Lhyquid3D::Description()
   oss << "# - impact parameter       : " <<MODEL_PAR_DESC(mImpactParameter,	"[fm]");
   oss << "# - init. central temp.    : " <<MODEL_PAR_DESC(mTempI,		"[MeV]");
   oss << "# Parameters hash (CRC32)  : " <<MODEL_PAR_DESC(mHash,		"");
-  oss << "# Integration samples      : " <<MODEL_PAR_DESC(sIntegrateSample,	"");
-  oss << "# Random seed              : " <<MODEL_PAR_DESC((sRandomize ? "yes" : "no"),"");
+  Describe(oss);
   oss << "# Generation date          : " <<sTimeStamp<<" #"<<endl;
   oss << "##################################################"<< endl;  
   mDescription = oss.str();

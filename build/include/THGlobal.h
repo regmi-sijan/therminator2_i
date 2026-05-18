@@ -75,6 +75,7 @@ static const TString sProjNames[] = {"out","side","long"};
 // Define DEBUG information
 
 #define PRINT_MESSAGE(_mes) std::cout << _mes << std::endl;
+#define PRINT_MESSAGE_TO(oss, _mes) oss << _mes << std::endl;
 #if _DEBUG_LEVEL_==0
   #define PRINT_DEBUG_3(_mes)
   #define PRINT_DEBUG_2(_mes)

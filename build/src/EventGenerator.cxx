@@ -44,7 +44,7 @@ extern TString	sModelINI;
 extern int	sSeed;
 extern int	sModel;
 extern int	sRandomize;
-extern int	sIntegrateSample;
+
 extern int	sParentPID;
 
 using namespace std;
@@ -63,7 +63,7 @@ EventGenerator::EventGenerator(ParticleDB* aDB, AbstractEventSaver *aES)
   mMultiplicities.clear();
   mMultiplicities.resize(mDB->GetParticleTypeCount());
   ReadParameters();
-  mInteg = new Integrator(sIntegrateSample, mDB);
+  mInteg = new Integrator(sMainConfig, mDB);
   mInteg->SetMultiplicities();
   mEvent = new Event();
   if (sRandomize) {
@@ -167,8 +167,7 @@ void EventGenerator::DecayParticles(int aSeed)
 void EventGenerator::ReadParameters()
 {
   try {
-    mNumberOfEvents	= (sMainConfig->GetParameter("NumberOfEvents")).Atoi();
-    sIntegrateSample	= (sMainConfig->GetParameter("IntegrateSamples")).Atoi();
+    mNumberOfEvents	        = (sMainConfig->GetParameter("NumberOfEvents")).Atoi();
   }
   catch (TString &tError) {
     PRINT_MESSAGE("<EventGenerator::ReadParameters>\tCaught exception " << tError);

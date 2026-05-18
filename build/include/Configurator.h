@@ -48,6 +48,7 @@ class Configurator {
     bool    HasParameter(const char* aKeyword) noexcept(true);
     void    AddParameter(Parameter* aPar);
     int     PrintParameters();
+    int     PrintParameters(std::ostream &);
 
   private:    
     std::vector<Parameter> mParameters;	

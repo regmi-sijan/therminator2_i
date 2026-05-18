@@ -56,12 +56,11 @@ extern int      sModel;
 extern int      sSeed;
 
 Integrator::Integrator(ParticleDB *mDB)
-: mNSamples(0), mRandom(0), mFOModel(0), mDB(mDB)
+: mNSamples(0), mTolerance(0), mToleranceInterval(0),  mToleranceNSuccessive(0), mRandom(0), mFOModel(0), mDB(mDB)
 {
 }
 
-Integrator::Integrator(int aNSamples, ParticleDB *mDB)
-: mNSamples(aNSamples), mDB(mDB)
+Integrator::Integrator(Configurator *aMainConfig, ParticleDB *aDB) : mDB(aDB)
 { 
   mRandom = new TRandom2();
 #ifdef _ROOT_4_
@@ -70,31 +69,43 @@ Integrator::Integrator(int aNSamples, ParticleDB *mDB)
   mRandom->SetSeed(41321 + sSeed);
 #endif
 
+  try {
+    mNSamples	        = (aMainConfig->GetParameter("MaxIntegrateSamples")).Atoi();
+    mTolerance	        = (aMainConfig->GetParameter("IntegTolerance")).Atof();
+    mToleranceInterval	= (aMainConfig->GetParameter("IntegToleranceInterval")).Atof();
+    mToleranceNSuccessive	= (aMainConfig->GetParameter("IntegToleranceNSuccessive")).Atoi();
+  }
+  catch (TString &tError) {
+    PRINT_MESSAGE("<EventGenerator::ReadParameters>\tCaught exception " << tError);
+    PRINT_MESSAGE("\tDid not find one of the necessary parameters in the parameters file.");
+    exit(_ERROR_CONFIG_PARAMETER_NOT_FOUND_);
+  }
+
   switch (sModel) {
 // HYDRO INSPIRED
     case 0:
-      mFOModel = new Model_KrakowSFO(mRandom);
+      mFOModel = new Model_KrakowSFO(mRandom, aMainConfig);
       break;
     case 1:
-      mFOModel = new Model_BlastWave(mRandom);
+      mFOModel = new Model_BlastWave(mRandom, aMainConfig);
       break;
     case 2:
     case 3:
     case 4:
     case 5:
     case 6:
-      mFOModel = new Model_BWA(mRandom);
+      mFOModel = new Model_BWA(mRandom, aMainConfig);
       break;
 // HYDRO BASED
     case 10:
-      mFOModel = new Model_Lhyquid3D(mRandom);
+      mFOModel = new Model_Lhyquid3D(mRandom, aMainConfig);
       break;
     case 11:
-      mFOModel = new Model_Lhyquid2DBI(mRandom);
+      mFOModel = new Model_Lhyquid2DBI(mRandom, aMainConfig);
       break;
  // USER DEFINED
     case 99:
-      Model_SR *tModel_SR = new Model_SR(mRandom);
+      Model_SR *tModel_SR = new Model_SR(mRandom, aMainConfig);
       mFOModel = tModel_SR;
       double tProtonsReq = tModel_SR->GetProtonsReq();
       if (tProtonsReq > 0) {
@@ -242,6 +253,8 @@ double Integrator::Integrate(ParticleType* aPartType)
 
 //  mRandom->SetSeed(41321);
 
+  Int_t aOversamp = 1;
+
   if (strcmp(aPartType->GetName(),"Dl1232mnb")==0 ||
       strcmp(aPartType->GetName(),"Dl1232zrb")==0 ||
       strcmp(aPartType->GetName(),"Dl1232plb")==0 ||
@@ -249,90 +262,79 @@ double Integrator::Integrate(ParticleType* aPartType)
       strcmp(aPartType->GetName(),"Dl1232min")==0 ||
       strcmp(aPartType->GetName(),"Dl1232zer")==0 ||
       strcmp(aPartType->GetName(),"Dl1232plu")==0 ||
-      strcmp(aPartType->GetName(),"Dl1232plp")==0)
+      strcmp(aPartType->GetName(),"Dl1232plp")==0 ||
+      strcmp(aPartType->GetName(),"Lm2350zer")==0 ||
+      strcmp(aPartType->GetName(),"Lm2350zrb")==0 ||
+      strcmp(aPartType->GetName(),"Lm2110zer")==0 ||
+      strcmp(aPartType->GetName(),"Lm2110zrb")==0 ||
+      strcmp(aPartType->GetName(),"Lm2100zer")==0 ||
+      strcmp(aPartType->GetName(),"Lm2100zrb")==0 ||
+      strcmp(aPartType->GetName(),"Lm1890zer")==0 ||
+      strcmp(aPartType->GetName(),"Lm1890zrb")==0 ||
+      strcmp(aPartType->GetName(),"Lm1830zer")==0 ||
+      strcmp(aPartType->GetName(),"Lm1830zrb")==0 ||
+      strcmp(aPartType->GetName(),"Lm1820zer")==0 ||
+      strcmp(aPartType->GetName(),"Lm1820zrb")==0 ||
+      strcmp(aPartType->GetName(),"Lm1810zer")==0 ||
+      strcmp(aPartType->GetName(),"Lm1810zrb")==0 ||
+      strcmp(aPartType->GetName(),"Lm1800zer")==0 ||
+      strcmp(aPartType->GetName(),"Lm1800zrb")==0 ||
+      strcmp(aPartType->GetName(),"Lm1690zer")==0 ||
+      strcmp(aPartType->GetName(),"Lm1690zrb")==0 ||
+      strcmp(aPartType->GetName(),"Lm1670zer")==0 ||
+      strcmp(aPartType->GetName(),"Lm1670zrb")==0 ||
+      strcmp(aPartType->GetName(),"Lm1600zer")==0 ||
+      strcmp(aPartType->GetName(),"Lm1600zrb")==0 ||
+      strcmp(aPartType->GetName(),"Lm1520zer")==0 ||
+      strcmp(aPartType->GetName(),"Lm1520zrb")==0 ||
+      strcmp(aPartType->GetName(),"Lm1405zer")==0 ||
+      strcmp(aPartType->GetName(),"Lm1405zrb")==0 ||
+      strcmp(aPartType->GetName(),"Lm1115zer")==0 ||
+      strcmp(aPartType->GetName(),"Lm1115zrb")==0 )
   {
-
-    int oversamp = 10;
-
-    for (tIter = 0; tIter < oversamp*mNSamples; tIter++) 
-    {
-      std::pair<double, double> tIntegrands = mFOModel->GetIntegrand(aPartType,true);
-      tVal = tIntegrands.first;
-      if (tVal>tMaxInt)
-        tMaxInt = tVal;
-
-      tMulti += tVal;
-      
-    }
-    tMulti *= mFOModel->GetHyperCubeVolume() / (1.0 * oversamp * mNSamples);
-    aPartType->SetMaxIntegrand(tMaxInt);
-    aPartType->SetMultiplicity(tMulti);
+    aOversamp = 10;
   }
-  else if(strcmp(aPartType->GetName(),"Lm2350zer")==0 ||
-          strcmp(aPartType->GetName(),"Lm2350zrb")==0 ||
-          strcmp(aPartType->GetName(),"Lm2110zer")==0 ||
-          strcmp(aPartType->GetName(),"Lm2110zrb")==0 ||
-          strcmp(aPartType->GetName(),"Lm2100zer")==0 ||
-          strcmp(aPartType->GetName(),"Lm2100zrb")==0 ||
-          strcmp(aPartType->GetName(),"Lm1890zer")==0 ||
-          strcmp(aPartType->GetName(),"Lm1890zrb")==0 ||
-          strcmp(aPartType->GetName(),"Lm1830zer")==0 ||
-          strcmp(aPartType->GetName(),"Lm1830zrb")==0 ||
-          strcmp(aPartType->GetName(),"Lm1820zer")==0 ||
-          strcmp(aPartType->GetName(),"Lm1820zrb")==0 ||
-          strcmp(aPartType->GetName(),"Lm1810zer")==0 ||
-          strcmp(aPartType->GetName(),"Lm1810zrb")==0 ||
-          strcmp(aPartType->GetName(),"Lm1800zer")==0 ||
-          strcmp(aPartType->GetName(),"Lm1800zrb")==0 ||
-          strcmp(aPartType->GetName(),"Lm1690zer")==0 ||
-          strcmp(aPartType->GetName(),"Lm1690zrb")==0 ||
-          strcmp(aPartType->GetName(),"Lm1670zer")==0 ||
-          strcmp(aPartType->GetName(),"Lm1670zrb")==0 ||
-          strcmp(aPartType->GetName(),"Lm1600zer")==0 ||
-          strcmp(aPartType->GetName(),"Lm1600zrb")==0 ||
-          strcmp(aPartType->GetName(),"Lm1520zer")==0 ||
-          strcmp(aPartType->GetName(),"Lm1520zrb")==0 ||
-          strcmp(aPartType->GetName(),"Lm1405zer")==0 ||
-          strcmp(aPartType->GetName(),"Lm1405zrb")==0 ||
-          strcmp(aPartType->GetName(),"Lm1115zer")==0 ||
-          strcmp(aPartType->GetName(),"Lm1115zrb")==0 ) //new hack - JK
+
+  Int_t aNSamplesActual = 0;
+  Double_t aMultiPrev = 0;
+  Int_t aCountSmallChange = 0;
+
+  for (tIter = 0; tIter < mNSamples * aOversamp; tIter++) 
   {
-    int oversamp = 10;
-    
-    for (tIter = 0; tIter < oversamp*mNSamples; tIter++) 
-    {
-      tVal = mFOModel->GetIntegrand(aPartType,true).first;
+    std::pair<double, double> tIntegrands = mFOModel->GetIntegrand(aPartType,true);
+    tVal = tIntegrands.first;
 
-      if (tVal>tMaxInt) 
-        tMaxInt = tVal;
+    if (tVal>tMaxInt) 
+      tMaxInt = tVal;
 
-      tMulti += tVal;
+    tMulti += tVal;
+    aNSamplesActual += 1;
+
+    tVal = tIntegrands.second;
+    tVolume += tVal;
+
+    // was: if (tIter % (mNSamples / 100000) == 0) { 
+    // if (tIter % (mNSamples / 100000) == 0) { 
+    if (tIter % (mToleranceInterval) == 0) { 
+        // (mp - m/sa) / (m/sa) = (mp*sa - m)/m
+       // if (tIter > 0 && (TMath::Abs(aMultiPrev * aNSamplesActual - tMulti) / tMulti < 1e-5)) { // was 1e-5
+        if (tIter > 0 && (TMath::Abs(aMultiPrev * aNSamplesActual - tMulti) / tMulti < mTolerance)) { // was 1e-5
+            aCountSmallChange++;
+            if (aCountSmallChange >= mToleranceNSuccessive) {
+                cout << "Error small enough. Interrupted after " << tIter << " iterations " << " out of " << mNSamples * aOversamp << ": " << tMulti << " - " << aMultiPrev * aNSamplesActual << endl;
+                break;
+            }
+        } else {
+            aCountSmallChange = 0;
+        }
+        aMultiPrev = tMulti / aNSamplesActual; // Store divided by the number of samples
     }
-    tMulti *= mFOModel->GetHyperCubeVolume() / (1.0 * oversamp * mNSamples);
-    aPartType->SetMaxIntegrand(tMaxInt);
-    aPartType->SetMultiplicity(tMulti);
+
   }
-  else
-  {
-    /// END_HACK_RR
-    for (tIter = 0; tIter < mNSamples; tIter++) 
-    {
-      std::pair<double, double> tIntegrands = mFOModel->GetIntegrand(aPartType,true);
-      tVal = tIntegrands.first;
-
-      if (tVal>tMaxInt) 
-        tMaxInt = tVal;
-
-      tMulti += tVal;
-
-      tVal = tIntegrands.second;
-      tVolume += tVal;
-    }
-    tMulti *= mFOModel->GetHyperCubeVolume() / (1.0 * mNSamples);
-    tVolume *= 2 * TMath::Pi() * TMath::Pi() * mFOModel->GetHyperCubeVolume() / (1.0 * mNSamples) * TMath::Power(kHbarC, 3)/3;
-    aPartType->SetMaxIntegrand(tMaxInt);
-    aPartType->SetMultiplicity(tMulti);
-  }
+  tMulti *= mFOModel->GetHyperCubeVolume() / (1.0 * aNSamplesActual);
+  tVolume *= 2 * TMath::Pi() * TMath::Pi() * mFOModel->GetHyperCubeVolume() / (1.0 * aNSamplesActual) * TMath::Power(kHbarC, 3)/3;
+  aPartType->SetMaxIntegrand(tMaxInt);
+  aPartType->SetMultiplicity(tMulti);
 
   return tMulti;
 }

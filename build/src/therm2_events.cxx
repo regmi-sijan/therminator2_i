@@ -55,7 +55,10 @@ TString	sTimeStamp;
 int	sModel;
 int	sRandomize;
 int	sSeed;
-int	sIntegrateSample;
+int	sMaxIntegrateSample;
+int     sIntegTolerance;
+int     sIntegToleranceNIntervals;
+int     sIntegToleranceNSuccessive;
 int	sParentPID;
 
 void ReadParameters();
@@ -174,7 +177,7 @@ That information can be passed to other programs i.e. ROOT figures or HBT in one
     double tCoulombStepSize = sMainConfig->GetParameter("CoulombStepSize").Atof();
     Model_SR * tModel_SR = dynamic_cast<Model_SR*>(tEventGen->GetModel());
     if (tModel_SR != nullptr) {
-      tAfterburners->Add(new CoulombAfterburner(tCoulombSteps, tCoulombStepSize, tModel_SR->GetR(), nullptr));
+      tAfterburners->Add(new CoulombAfterburner(tCoulombSteps, tCoulombStepSize, tModel_SR->GetR(), nullptr, tPartDB));
     }
   } catch (TString &str) {
     cout << "Parameter " << str.Data() << " is not known" << endl;

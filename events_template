@@ -53,15 +53,17 @@ FreezeOutModel = SR
 [Event]
 # Number of events to generate 
 # default:	50000
-#NumberOfEvents = 10000
+NumberOfEvents = 10000
 #NumberOfEvents = 1000
-NumberOfEvents = 500
+
+#NumberOfEvents = 500
+
 #NumberOfEvents = 5
 
 # Event output file format
 # available:	root, root&text, text
 # default:	root
-EventFileType = unigen&text
+EventFileType = unigen
 #EventFileType = root
 
 [Primordial]
@@ -73,8 +75,23 @@ MultiplicityDistribution = Poisson
 # Number of samples used in determination of
 # primordial multiplicity and max. integrand value
 # default:	   5000000
-IntegrateSamples = 5000000
+MaxIntegrateSamples = 5000000
 #IntegrateSamples = 50000
+# Tolerance of the primordial multiplicy, the integration 
+# is interrupted early when the multiplicity does not change
+# relatively by more then this value
+# default = 0.00001
+IntegTolerance = 0.00001
+# Number of samples after which the relative change in multiplicity
+# is tested
+# default = 50
+IntegToleranceInterval = 50
+# Number of successive intervals (IntegToleranceInterval) in which 
+# the multiplicity must change relativelty less than the Tolerance
+# (IntegTolerance) in order for the multiplicity calculation to be
+# interrupted early
+# default: 10
+IntegToleranceNSuccessive = 10
 
 [Random]
 # Start each event with a new random seed taken from current time (1)
@@ -106,5 +123,5 @@ EventDir = ./
 LogFile = therminator.log
 
 # Coulomb afterburner flags
-CoulombTimeSteps = 50
-CoulombStepSize = 2.0
+CoulombTimeSteps = 0
+CoulombStepSize = 1.0

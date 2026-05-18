@@ -3,6 +3,8 @@
 
 #include "AbstractAfterburner.h"
 #include "AbstractEventSaver.h"
+#include "ParticleDB.h"
+#include "TGlauberMC.h"
 #include "TLorentzVector.h"
 
 #include "TFile.h"
@@ -11,7 +13,7 @@
 
 class CoulombAfterburner : public AbstractAfterburner {
   public:
-    CoulombAfterburner(int, double, double, AbstractEventSaver *);
+    CoulombAfterburner(int, double, double, AbstractEventSaver *, ParticleDB *);
     virtual ~CoulombAfterburner();
     virtual void Apply(Event *);
     static ParticleType *SpectatorType(std::list<Particle> *, Float_t &tSpectatorX);
@@ -34,7 +36,8 @@ class CoulombAfterburner : public AbstractAfterburner {
     double Interval(TVector3, double, TVector3, double, bool debug = false);
     double Interval(TVector3, double, TLorentzVector, bool debug = false);
     double Interval(TLorentzVector, TLorentzVector, bool debug = false);
-    ParticleType *AddSpectators(std::list<Particle> *, Float_t tEarliestTime);
+    Int_t AddSpectators(std::list<Particle> *, Float_t tEarliestTime);
+    Float_t SampleImpB(std::list<Particle> *);
     Double_t mR;
     AbstractEventSaver *mEventSaver;
 
@@ -54,6 +57,15 @@ class CoulombAfterburner : public AbstractAfterburner {
     TProfile *m_hZeffR;
     TGraph *m_gPositionTimeStep_1;
     TGraph *m_gPositionTimeStep_2;
+
+    TGlauberMC *m_mcg;
+    ParticleType *mProtonSpectatorAType;
+    ParticleType *mNeutronSpectatorAType;
+    ParticleType *mProtonSpectatorBType;
+    ParticleType *mNeutronSpectatorBType;
+
+    TH2F *m_hNpartImpB;
+    std::map<Int_t, TH1F *> m_hImpBprojs;
 
     static constexpr double qe = sqrt(1.4399764e-3); // sqrt(GeV * fm)                                                                  
 
